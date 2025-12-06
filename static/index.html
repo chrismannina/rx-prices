@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NADAC Drug Price Inflation Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        header p {
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            font-weight: 500;
+        }
+
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-top: 0.25rem;
+        }
+
+        .stat-card .value.positive { color: var(--danger); }
+        .stat-card .value.negative { color: var(--success); }
+
+        .section {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .section-header h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .section-content {
+            padding: 1.25rem;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 1px solid var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .btn-outline:hover {
+            background: var(--gray-50);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.25rem;
+            background: var(--gray-100);
+            border-radius: 0.5rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            transition: all 0.15s;
+        }
+
+        .tab.active {
+            background: white;
+            color: var(--gray-900);
+            box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-50);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gray-600);
+        }
+
+        tr:hover {
+            background: var(--gray-50);
+        }
+
+        .change-positive {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .change-negative {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-generic { background: #dbeafe; color: #1e40af; }
+        .badge-brand { background: #fce7f3; color: #9d174d; }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .drug-detail {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drug-detail.active {
+            display: flex;
+        }
+
+        .drug-detail-content {
+            background: white;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow: auto;
+            padding: 1.5rem;
+        }
+
+        .drug-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-600);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-600);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box {
+                max-width: none;
+            }
+
+            table {
+                font-size: 0.875rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>NADAC Drug Price Inflation Tracker</h1>
+            <p>Track prescription drug price changes using CMS NADAC data</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Stats Overview -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <h3>Total Drugs Tracked</h3>
+                <div class="value" id="total-drugs">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Average Price Change</h3>
+                <div class="value" id="avg-change">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Drugs with Increases</h3>
+                <div class="value" id="increases">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Drugs with Decreases</h3>
+                <div class="value" id="decreases">-</div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Search Drugs</h2>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Enter drug name or NDC...">
+                    <button class="btn btn-primary" onclick="searchDrugs()">Search</button>
+                </div>
+            </div>
+            <div class="section-content">
+                <div id="search-results" class="empty-state">
+                    Enter a drug name or NDC code to search
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Inflation Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Price Changes</h2>
+                <div class="tabs">
+                    <button class="tab active" onclick="loadTopInflation('highest')">Highest Increases</button>
+                    <button class="tab" onclick="loadTopInflation('lowest')">Biggest Decreases</button>
+                </div>
+            </div>
+            <div class="section-content">
+                <div id="top-inflation-table" class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Recent Changes Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Recent Price Changes</h2>
+                <select id="drug-type-filter" class="btn btn-outline" onchange="loadRecentChanges()">
+                    <option value="">All Types</option>
+                    <option value="G">Generic</option>
+                    <option value="B">Brand</option>
+                </select>
+            </div>
+            <div class="section-content">
+                <div id="recent-changes-table" class="loading">Loading...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Drug Detail Modal -->
+    <div class="drug-detail" id="drug-detail">
+        <div class="drug-detail-content">
+            <div class="drug-detail-header">
+                <div>
+                    <h2 id="detail-drug-name">Drug Name</h2>
+                    <p id="detail-ndc" style="color: var(--gray-600);">NDC: </p>
+                </div>
+                <button class="close-btn" onclick="closeDrugDetail()">&times;</button>
+            </div>
+            <div class="stats-grid" id="detail-stats"></div>
+            <div class="chart-container">
+                <canvas id="price-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Data source: CMS NADAC (National Average Drug Acquisition Cost)</p>
+        <p>Updated weekly. For informational purposes only.</p>
+    </footer>
+
+    <script>
+        const API_BASE = '/api';
+        let priceChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadTopInflation('highest');
+            loadRecentChanges();
+
+            document.getElementById('search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchDrugs();
+            });
+        });
+
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/inflation/stats`);
+                const data = await response.json();
+
+                document.getElementById('total-drugs').textContent =
+                    data.total_drugs_tracked?.toLocaleString() || '0';
+
+                const avgChange = parseFloat(data.average_percent_change || 0);
+                const avgEl = document.getElementById('avg-change');
+                avgEl.textContent = (avgChange >= 0 ? '+' : '') + avgChange.toFixed(2) + '%';
+                avgEl.className = 'value ' + (avgChange >= 0 ? 'positive' : 'negative');
+
+                document.getElementById('increases').textContent =
+                    data.drugs_with_increases?.toLocaleString() || '0';
+                document.getElementById('decreases').textContent =
+                    data.drugs_with_decreases?.toLocaleString() || '0';
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function searchDrugs() {
+            const query = document.getElementById('search-input').value.trim();
+            if (query.length < 2) {
+                document.getElementById('search-results').innerHTML =
+                    '<div class="empty-state">Please enter at least 2 characters</div>';
+                return;
+            }
+
+            document.getElementById('search-results').innerHTML =
+                '<div class="loading">Searching...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/drugs/search?q=${encodeURIComponent(query)}&limit=20`);
+                const data = await response.json();
+
+                if (!data.results || data.results.length === 0) {
+                    document.getElementById('search-results').innerHTML =
+                        '<div class="empty-state">No drugs found matching your search</div>';
+                    return;
+                }
+
+                const html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>NDC</th>
+                                <th>Type</th>
+                                <th>Latest Price</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.results.map(drug => `
+                                <tr>
+                                    <td>${escapeHtml(drug.ndc_description)}</td>
+                                    <td><code>${drug.ndc}</code></td>
+                                    <td>${getDrugTypeBadge(drug.drug_type)}</td>
+                                    <td>$${parseFloat(drug.latest_price).toFixed(4)}</td>
+                                    <td>
+                                        <button class="btn btn-outline" onclick="showDrugDetail('${drug.ndc}')">
+                                            View Details
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                document.getElementById('search-results').innerHTML = html;
+            } catch (error) {
+                console.error('Error searching drugs:', error);
+                document.getElementById('search-results').innerHTML =
+                    '<div class="empty-state">Error searching. Please try again.</div>';
+            }
+        }
+
+        async function loadTopInflation(direction) {
+            // Update active tab
+            document.querySelectorAll('.tabs .tab').forEach(tab => {
+                tab.classList.toggle('active', tab.textContent.toLowerCase().includes(
+                    direction === 'highest' ? 'increase' : 'decrease'
+                ));
+            });
+
+            document.getElementById('top-inflation-table').innerHTML =
+                '<div class="loading">Loading...</div>';
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/inflation/top?n=15&direction=${direction}&min_days=90`
+                );
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    document.getElementById('top-inflation-table').innerHTML =
+                        '<div class="empty-state">No data available. Run data ingestion first.</div>';
+                    return;
+                }
+
+                const html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>Type</th>
+                                <th>First Price</th>
+                                <th>Latest Price</th>
+                                <th>Change</th>
+                                <th>Period</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(drug => `
+                                <tr onclick="showDrugDetail('${drug.ndc}')" style="cursor: pointer;">
+                                    <td>${escapeHtml(truncate(drug.ndc_description, 50))}</td>
+                                    <td>${getDrugTypeBadge(drug.drug_type)}</td>
+                                    <td>$${parseFloat(drug.first_price).toFixed(4)}</td>
+                                    <td>$${parseFloat(drug.latest_price).toFixed(4)}</td>
+                                    <td class="${parseFloat(drug.total_percent_change) >= 0 ? 'change-positive' : 'change-negative'}">
+                                        ${parseFloat(drug.total_percent_change) >= 0 ? '+' : ''}${parseFloat(drug.total_percent_change).toFixed(2)}%
+                                    </td>
+                                    <td>${drug.period_days} days</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                document.getElementById('top-inflation-table').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading top inflation:', error);
+                document.getElementById('top-inflation-table').innerHTML =
+                    '<div class="empty-state">Error loading data. Please try again.</div>';
+            }
+        }
+
+        async function loadRecentChanges() {
+            const drugType = document.getElementById('drug-type-filter').value;
+            document.getElementById('recent-changes-table').innerHTML =
+                '<div class="loading">Loading...</div>';
+
+            try {
+                let url = `${API_BASE}/price-changes?limit=20`;
+                if (drugType) url += `&drug_type=${drugType}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.results || data.results.length === 0) {
+                    document.getElementById('recent-changes-table').innerHTML =
+                        '<div class="empty-state">No price changes found</div>';
+                    return;
+                }
+
+                const html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>Previous Price</th>
+                                <th>Current Price</th>
+                                <th>Change</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.results.map(change => `
+                                <tr onclick="showDrugDetail('${change.ndc}')" style="cursor: pointer;">
+                                    <td>${escapeHtml(truncate(change.ndc_description, 45))}</td>
+                                    <td>$${parseFloat(change.previous_price).toFixed(4)}</td>
+                                    <td>$${parseFloat(change.current_price).toFixed(4)}</td>
+                                    <td class="${parseFloat(change.percent_change) >= 0 ? 'change-positive' : 'change-negative'}">
+                                        ${parseFloat(change.percent_change) >= 0 ? '+' : ''}${parseFloat(change.percent_change).toFixed(2)}%
+                                    </td>
+                                    <td>${change.current_date}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                document.getElementById('recent-changes-table').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading recent changes:', error);
+                document.getElementById('recent-changes-table').innerHTML =
+                    '<div class="empty-state">Error loading data. Please try again.</div>';
+            }
+        }
+
+        async function showDrugDetail(ndc) {
+            document.getElementById('drug-detail').classList.add('active');
+            document.getElementById('detail-drug-name').textContent = 'Loading...';
+            document.getElementById('detail-ndc').textContent = `NDC: ${ndc}`;
+            document.getElementById('detail-stats').innerHTML = '';
+
+            try {
+                const [inflationRes, historyRes] = await Promise.all([
+                    fetch(`${API_BASE}/drugs/${ndc}/inflation`),
+                    fetch(`${API_BASE}/drugs/${ndc}/history`)
+                ]);
+
+                const inflation = await inflationRes.json();
+                const history = await historyRes.json();
+
+                document.getElementById('detail-drug-name').textContent = inflation.ndc_description;
+
+                const change = parseFloat(inflation.total_percent_change);
+                document.getElementById('detail-stats').innerHTML = `
+                    <div class="stat-card">
+                        <h3>First Price</h3>
+                        <div class="value">$${parseFloat(inflation.first_price).toFixed(4)}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Latest Price</h3>
+                        <div class="value">$${parseFloat(inflation.latest_price).toFixed(4)}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Change</h3>
+                        <div class="value ${change >= 0 ? 'positive' : 'negative'}">
+                            ${change >= 0 ? '+' : ''}${change.toFixed(2)}%
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Price Points</h3>
+                        <div class="value">${inflation.price_change_count}</div>
+                    </div>
+                `;
+
+                // Create chart
+                const ctx = document.getElementById('price-chart').getContext('2d');
+                if (priceChart) priceChart.destroy();
+
+                priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: history.map(h => h.effective_date),
+                        datasets: [{
+                            label: 'NADAC Price per Unit ($)',
+                            data: history.map(h => parseFloat(h.nadac_per_unit)),
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: value => '$' + value.toFixed(4)
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading drug detail:', error);
+                document.getElementById('detail-drug-name').textContent = 'Error loading data';
+            }
+        }
+
+        function closeDrugDetail() {
+            document.getElementById('drug-detail').classList.remove('active');
+            if (priceChart) priceChart.destroy();
+        }
+
+        function getDrugTypeBadge(type) {
+            if (type === 'G') return '<span class="badge badge-generic">Generic</span>';
+            if (type === 'B') return '<span class="badge badge-brand">Brand</span>';
+            return '<span class="badge">N/A</span>';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function truncate(str, len) {
+            if (!str) return '';
+            return str.length > len ? str.substring(0, len) + '...' : str;
+        }
+
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeDrugDetail();
+        });
+
+        // Close modal on backdrop click
+        document.getElementById('drug-detail').addEventListener('click', (e) => {
+            if (e.target.id === 'drug-detail') closeDrugDetail();
+        });
+    </script>
+</body>
+</html>
